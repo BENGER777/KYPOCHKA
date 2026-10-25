@@ -1,0 +1,1365 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Курочка Ряба — интерактивная сказка</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;overflow:hidden}
+  body{
+    font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+    color:#3a2e22;
+    background:radial-gradient(circle at 50% 0%,#fff9ee 0%,#f3e5cb 55%,#e7d3b0 100%);
+    display:flex;flex-direction:column;
+    user-select:none;touch-action:manipulation;
+  }
+  #app{flex:1;display:flex;flex-direction:column;
+    width:100%;max-width:1080px;margin:0 auto;
+    padding:10px 16px 14px;min-height:0}
+  .hud{display:flex;align-items:center;justify-content:space-between;
+    gap:16px;padding:2px 4px 10px;flex-shrink:0}
+  .hud-right{display:flex;align-items:center;gap:14px}
+  .brand{font-family:Georgia,'Times New Roman',serif;
+    font-size:clamp(15px,2vw,19px);letter-spacing:.04em;color:#8a6a44;white-space:nowrap}
+  .brand b{color:#b8372a;font-weight:600}
+  .dots{display:flex;gap:7px;align-items:center}
+  .dot{width:7px;height:7px;border-radius:50%;background:#dcc8a6;
+    box-shadow:inset 0 1px 1px rgba(0,0,0,.1);
+    transition:background .35s,transform .35s,box-shadow .35s}
+  .dot.done{background:#c9a06a}
+  .dot.active{background:#c0392b;transform:scale(1.6);box-shadow:0 0 8px rgba(192,57,43,.5)}
+
+  .icon-btn{
+    width:36px;height:36px;border-radius:50%;border:0;
+    background:rgba(255,255,255,.55);
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;color:#8a6a44;
+    transition:background .2s,color .2s,transform .15s;
+    box-shadow:0 1px 3px rgba(90,60,30,.12),inset 0 0 0 1px rgba(160,120,70,.2);
+  }
+  .icon-btn:hover{background:rgba(255,255,255,.9);color:#5a4028}
+  .icon-btn:active{transform:scale(.93)}
+  .icon-btn.muted{color:#b8372a;background:rgba(255,235,225,.85)}
+
+  .stage{flex:1;min-height:0;position:relative;
+    border-radius:22px;overflow:hidden;
+    background:linear-gradient(180deg,#a8d8ea 0%,#f4ecd8 70%,#cfe0ac 100%);
+    box-shadow:0 12px 34px rgba(90,60,30,.18),
+               inset 0 0 0 1px rgba(160,120,70,.25),
+               inset 0 0 0 6px rgba(255,255,255,.55);
+    transition:opacity .26s ease}
+  .scene-svg{width:100%;height:100%;display:block}
+
+  .caption{font-family:Georgia,'Times New Roman',serif;
+    font-size:clamp(16px,2.5vw,23px);line-height:1.42;text-align:center;color:#4a3a28;
+    padding:14px 12px 4px;max-width:780px;margin:0 auto;
+    min-height:calc(1.42em * 2 + 18px);
+    text-shadow:0 1px 0 rgba(255,255,255,.6);
+    transition:opacity .25s ease}
+  .hint{text-align:center;font-size:14px;letter-spacing:.02em;
+    color:#9a7f5c;min-height:20px;padding-bottom:2px;
+    animation:pulse 2.2s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:.5}50%{opacity:1}}
+
+  .overlay{position:fixed;inset:0;z-index:50;display:flex;
+    align-items:center;justify-content:center;padding:22px;
+    background:rgba(58,44,28,.42);
+    -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+    transition:opacity .35s ease,visibility .35s}
+  .overlay.hidden{opacity:0;visibility:hidden;pointer-events:none}
+
+  .card{background:linear-gradient(165deg,#fffefb 0%,#fdf6e6 100%);
+    border-radius:28px;padding:clamp(28px,5vw,50px) clamp(26px,5vw,56px);
+    max-width:540px;width:100%;text-align:center;
+    box-shadow:0 28px 80px rgba(60,40,20,.38),
+               0 0 0 1px rgba(190,150,100,.4),
+               0 0 0 10px rgba(255,255,255,.35),
+               inset 0 1px 0 rgba(255,255,255,.9);
+    animation:cardIn .45s cubic-bezier(.2,1.2,.4,1)}
+  @keyframes cardIn{from{transform:translateY(18px) scale(.96);opacity:0}to{transform:none;opacity:1}}
+  .card h1{font-family:Georgia,'Times New Roman',serif;
+    font-size:clamp(28px,5vw,42px);font-weight:600;
+    color:#8f2f22;letter-spacing:.01em;line-height:1.15}
+  .card .sub{margin-top:10px;font-size:clamp(14px,2.2vw,17px);
+    color:#8a7255;line-height:1.5}
+  .card .rule{width:64px;height:3px;border-radius:2px;margin:18px auto;
+    background:linear-gradient(90deg,transparent,#d9b477,transparent)}
+
+  .btn{font:inherit;font-weight:600;font-size:clamp(16px,2.4vw,19px);
+    padding:16px 46px;margin-top:26px;border:0;border-radius:999px;
+    color:#fff;cursor:pointer;letter-spacing:.02em;
+    background:linear-gradient(180deg,#e05243 0%,#b8372a 50%,#9a2a1e 100%);
+    box-shadow:0 6px 0 #8a2316,0 14px 28px rgba(150,45,25,.32),
+               inset 0 1px 0 rgba(255,255,255,.3);
+    transition:transform .1s ease,box-shadow .1s ease,background .2s}
+  .btn:hover{background:linear-gradient(180deg,#e85a4b 0%,#c03e30 50%,#a22f22 100%)}
+  .btn:active{transform:translateY(4px);box-shadow:0 2px 0 #8a2316,0 6px 14px rgba(150,45,25,.3),
+               inset 0 1px 0 rgba(255,255,255,.3)}
+  .btn:focus-visible{outline:3px solid #e8b84b;outline-offset:3px}
+
+  .audio-status{font-size:12px;color:#a89575;margin-top:14px;min-height:14px;letter-spacing:.01em;line-height:1.5}
+
+  .mini-hen{display:block;margin:0 auto 4px;width:110px;height:130px}
+  .hintring{pointer-events:none;transform-box:fill-box;transform-origin:center;
+    animation:ringPulse 1.9s ease-out infinite}
+  @keyframes ringPulse{0%{transform:scale(.86);opacity:.85}70%{transform:scale(1.22);opacity:0}100%{transform:scale(1.22);opacity:0}}
+  .tears{transition:opacity .6s ease}
+
+  @media (max-width:520px){
+    #app{padding:8px 10px 10px}
+    .stage{border-radius:16px}
+    .caption{padding-top:10px}
+    .mini-hen{width:88px;height:104px}
+    .hud-right{gap:10px}
+  }
+  @media (max-height:560px){
+    .caption{font-size:15px;min-height:0;padding:8px 10px 2px}
+    .hint{font-size:12px}
+  }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="goldGrad" x1="0.2" y1="0" x2="0.75" y2="1">
+      <stop offset="0" stop-color="#fff6c8"/>
+      <stop offset="0.28" stop-color="#f8d060"/>
+      <stop offset="0.62" stop-color="#dfa32c"/>
+      <stop offset="1" stop-color="#b2770f"/>
+    </linearGradient>
+    <linearGradient id="plainGrad" x1="0.2" y1="0" x2="0.7" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.5" stop-color="#f6eee0"/>
+      <stop offset="1" stop-color="#d6cab2"/>
+    </linearGradient>
+    <radialGradient id="glowGrad" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ffeaa8" stop-opacity="0.9"/>
+      <stop offset="0.55" stop-color="#ffd977" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#ffd977" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+</svg>
+
+<div id="app">
+  <div class="hud">
+    <div class="brand">Курочка <b>Ряба</b></div>
+    <div class="hud-right">
+      <button class="icon-btn" id="muteBtn" aria-label="Звук вкл/выкл" title="Звук вкл/выкл"></button>
+      <div class="dots" id="dots"></div>
+    </div>
+  </div>
+  <div class="stage" id="stage"></div>
+  <div class="caption" id="caption"></div>
+  <div class="hint" id="hint"></div>
+</div>
+
+<div class="overlay" id="startOverlay">
+  <div class="card">
+    <svg class="mini-hen" viewBox="-55 -125 110 135" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
+    <h1>Курочка Ряба</h1>
+    <p class="sub">Интерактивная сказка для самых маленьких.<br>Нажимайте на героев и предметы, чтобы сказка ожила.</p>
+    <div class="rule"></div>
+    <button class="btn" id="startBtn">Начать сказку</button>
+    <div class="audio-status" id="audioStatus"></div>
+  </div>
+</div>
+
+<div class="overlay hidden" id="endOverlay">
+  <div class="card">
+    <h1>Тут и сказке конец</h1>
+    <p class="sub">А кто слушал — молодец!<br>Курочка Ряба снова снесла простое яичко,<br>и все остались довольны.</p>
+    <div class="rule"></div>
+    <button class="btn" id="againBtn">Ещё раз</button>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   ОЗВУЧКА — просто положите файлы рядом с index.html
+   (или в подпапку audio/ или sound/).
+   Игра при запуске сама найдёт их по имени.
+   Поддерживаются расширения: mp3, wav, ogg, m4a.
+   Если файл не найден — включится синтез.
+   ============================================================ */
+const AUDIO_DIRS = ['', 'audio/', 'sound/'];
+const AUDIO_EXTS = ['mp3', 'wav', 'ogg', 'm4a'];
+const NARRATION_VOL = 0.95;
+const EFFECTS_VOL   = 0.85;
+
+const AUDIO_KEYS = [
+  'narration-1','narration-2','narration-3','narration-4','narration-5','narration-6','narration-7',
+  'cluck','knock','sparkle','crash','squeak','sad','happy','pop','clink','whoosh'
+];
+
+/* найденные URL: key -> строка | null */
+const detectedUrls = {};
+let audioProbeDone = false;
+
+/* ---------- состояние звука ---------- */
+let muted = false;
+let currentNarration = null;
+try { muted = localStorage.getItem('ryaba-muted') === '1'; } catch(e){}
+
+/* ---------- пробинг: параллельно пробуем все варианты, резолвим на первом успехе ---------- */
+function buildUrls(key){
+  const urls = [];
+  for(const dir of AUDIO_DIRS){
+    for(const ext of AUDIO_EXTS){
+      urls.push(`${dir}${key}.${ext}`);
+    }
+  }
+  return urls;
+}
+
+function probeAudio(urls){
+  return new Promise(resolve => {
+    let remaining = urls.length;
+    let settled = false;
+    const audios = [];
+
+    function abortAll(){
+      for(const a of audios){
+        try {
+          a.oncanplaythrough = null;
+          a.onerror = null;
+          a.removeAttribute('src');
+          a.load();
+        } catch(e){}
+      }
+    }
+
+    for(const url of urls){
+      const a = new Audio();
+      audios.push(a);
+      let done = false;
+
+      const settle = (ok) => {
+        if(done) return;
+        done = true;
+        a.oncanplaythrough = null;
+        a.onerror = null;
+
+        if(settled) return;
+
+        if(ok){
+          settled = true;
+          abortAll();
+          resolve(url);
+        } else {
+          remaining--;
+          if(remaining === 0){
+            settled = true;
+            resolve(null);
+          }
+        }
+      };
+
+      a.preload = 'auto';
+      a.oncanplaythrough = () => settle(true);
+      a.onerror = () => settle(false);
+
+      try { a.src = url; a.load(); }
+      catch(e){ settle(false); continue; }
+
+      setTimeout(() => settle(false), 2500);
+    }
+  });
+}
+
+let audioProbePromise = null;
+function initAudioProbe(){
+  audioProbePromise = Promise.all(
+    AUDIO_KEYS.map(async key => {
+      detectedUrls[key] = await probeAudio(buildUrls(key));
+    })
+  ).then(() => {
+    audioProbeDone = true;
+    updateAudioIndicator();
+    logAudioSummary();
+  });
+  return audioProbePromise;
+}
+
+function logAudioSummary(){
+  const found = {}, missing = [];
+  for(const key of AUDIO_KEYS){
+    if(detectedUrls[key]) found[key] = detectedUrls[key];
+    else missing.push(key);
+  }
+  console.group('[Курочка Ряба] Проверка звуков');
+  if(Object.keys(found).length){
+    console.log('✓ Найдены файлы:');
+    for(const [k,v] of Object.entries(found)) console.log('  ', k, '→', v);
+  }
+  if(missing.length){
+    console.warn('✗ Не найдены (будет синтез):', missing.join(', '));
+  }
+  console.groupEnd();
+}
+
+function updateAudioIndicator(){
+  const el = document.getElementById('audioStatus');
+  if(!el) return;
+  const total = AUDIO_KEYS.length;
+  const found = Object.values(detectedUrls).filter(Boolean).length;
+  if(found === 0){
+    el.textContent = 'Звуковые файлы не найдены — используется встроенный синтез. Проверьте имена и папку (см. консоль F12).';
+    el.style.color = '#b5734a';
+  } else if(found === total){
+    el.textContent = `Найдены все ${total} звуковых файлов`;
+    el.style.color = '#8a6a44';
+  } else {
+    el.textContent = `Найдено звуковых файлов: ${found} из ${total}`;
+    el.style.color = '#8a6a44';
+  }
+}
+
+/* ---------- воспроизведение ---------- */
+function stopNarration(){
+  if(currentNarration){
+    try { currentNarration.pause(); currentNarration.currentTime = 0; } catch(e){}
+    currentNarration = null;
+  }
+}
+function duckNarration(){
+  if(!currentNarration) return;
+  const a = currentNarration;
+  a.volume = NARRATION_VOL * 0.3;
+  setTimeout(() => {
+    if(currentNarration === a) a.volume = NARRATION_VOL;
+  }, 550);
+}
+async function playNarration(i){
+  stopNarration();
+  if(muted) return;
+
+  // если проба ещё не завершена — подождём немного
+  if(!audioProbeDone && detectedUrls['narration-1'] === undefined){
+    try { await Promise.race([audioProbePromise, new Promise(r => setTimeout(r, 1800))]); } catch(e){}
+  }
+  if(muted) return;
+  if(current !== i) return;
+
+  const url = detectedUrls['narration-' + (i + 1)];
+  if(!url){
+    console.warn(`[Курочка Ряба] narration-${i + 1}: файл не найден`);
+    return;
+  }
+  const a = new Audio(url);
+  a.volume = NARRATION_VOL;
+  currentNarration = a;
+  const p = a.play();
+  if(p && p.catch) p.catch(err => {
+    console.warn(`[Курочка Ряба] Не удалось воспроизвести narration-${i + 1}:`, err.message);
+    if(currentNarration === a) currentNarration = null;
+  });
+}
+function playFile(key){
+  if(muted) return true;
+  const url = detectedUrls[key];
+  if(!url) return false;
+  const a = new Audio(url);
+  a.volume = EFFECTS_VOL;
+  const p = a.play();
+  if(p && p.catch) p.catch(()=>{});
+  duckNarration();
+  return true;
+}
+
+/* ---------- кнопка звука ---------- */
+const ICON_ON = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>`;
+const ICON_OFF = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><line x1="22" y1="9" x2="16" y2="15"/><line x1="16" y1="9" x2="22" y2="15"/></svg>`;
+
+function updateMuteBtn(){
+  const btn = document.getElementById('muteBtn');
+  if(!btn) return;
+  btn.innerHTML = muted ? ICON_OFF : ICON_ON;
+  btn.classList.toggle('muted', muted);
+  btn.setAttribute('aria-label', muted ? 'Включить звук' : 'Выключить звук');
+  btn.setAttribute('title', muted ? 'Звук выключен' : 'Звук включён');
+}
+function setMuted(m){
+  muted = m;
+  try { localStorage.setItem('ryaba-muted', m ? '1' : '0'); } catch(e){}
+  updateMuteBtn();
+  if(muted) stopNarration();
+}
+
+/* ============================================================
+   СИНТЕЗ — запасной звук
+   ============================================================ */
+let AC = null;
+function actx(){
+  if(!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
+  if(AC.state === 'suspended') AC.resume();
+  return AC;
+}
+function tone(freq, dur, type='sine', vol=0.12, when=0, slideTo=null){
+  if(muted) return;
+  const c = actx(), t = c.currentTime + when;
+  const o = c.createOscillator(), g = c.createGain();
+  o.type = type;
+  o.frequency.setValueAtTime(freq, t);
+  if(slideTo) o.frequency.exponentialRampToValueAtTime(Math.max(1, slideTo), t + dur);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(c.destination);
+  o.start(t); o.stop(t + dur + 0.03);
+}
+function noiseBurst(dur=0.2, vol=0.2, freq=1200, q=1, when=0){
+  if(muted) return;
+  const c = actx(), t = c.currentTime + when;
+  const len = Math.max(1, Math.floor(c.sampleRate * dur));
+  const buf = c.createBuffer(1, len, c.sampleRate);
+  const d = buf.getChannelData(0);
+  for(let i=0;i<len;i++) d[i] = (Math.random()*2-1) * Math.pow(1 - i/len, 2);
+  const src = c.createBufferSource(); src.buffer = buf;
+  const f = c.createBiquadFilter(); f.type='bandpass';
+  f.frequency.value = freq; f.Q.value = q;
+  const g = c.createGain(); g.gain.value = vol;
+  src.connect(f); f.connect(g); g.connect(c.destination);
+  src.start(t);
+}
+
+const S = {
+  cluck(){ if(playFile('cluck')) return;
+    tone(780,0.09,'square',0.055,0,470); tone(700,0.09,'square',0.045,0.13,400);
+    noiseBurst(0.05,0.035,2400,3); },
+  sparkle(){ if(playFile('sparkle')) return;
+    [1046,1318,1568,2093].forEach((f,i)=> tone(f,0.38,'sine',0.065,i*0.07)); },
+  pop(){ if(playFile('pop')) return; tone(480,0.14,'sine',0.1,0,940); },
+  knock(){ if(playFile('knock')) return;
+    noiseBurst(0.11,0.26,250,0.8); tone(150,0.12,'sine',0.14,0,68); },
+  clink(){ if(playFile('clink')) return;
+    tone(2150,0.26,'triangle',0.045); tone(3250,0.2,'sine',0.028); },
+  crash(){ if(playFile('crash')) return;
+    noiseBurst(0.45,0.28,2500,0.6); noiseBurst(0.3,0.2,720,0.9,0.04);
+    tone(340,0.3,'triangle',0.09,0,130); },
+  squeak(){ if(playFile('squeak')) return;
+    tone(1500,0.08,'sine',0.06,0,2150); tone(1700,0.06,'sine',0.05,0.11,2350); },
+  sad(){ if(playFile('sad')) return;
+    tone(392,0.55,'sine',0.075,0); tone(330,0.65,'sine',0.075,0.26);
+    tone(262,0.75,'sine',0.07,0.52); },
+  happy(){ if(playFile('happy')) return;
+    [523,659,784,1046,1318].forEach((f,i)=> tone(f,0.42,'triangle',0.085,i*0.1)); },
+  whoosh(){ if(playFile('whoosh')) return; noiseBurst(0.35,0.06,1600,0.7); }
+};
+
+/* ============================== АНИМАЦИИ ============================== */
+const easeOut   = p => 1 - Math.pow(1-p, 3);
+const easeIn    = p => p*p;
+const easeInOut = p => p < .5 ? 2*p*p : 1 - Math.pow(-2*p+2, 2)/2;
+function anim(dur, step, done){
+  const t0 = performance.now();
+  function frame(now){
+    const p = Math.min(1, (now - t0)/dur);
+    step(p);
+    if(p < 1) requestAnimationFrame(frame);
+    else if(done) done();
+  }
+  requestAnimationFrame(frame);
+}
+const SVGNS = 'http://www.w3.org/2000/svg';
+
+function burst(root, x, y, color='#ffe08a', count=8, radius=28){
+  const g = document.createElementNS(SVGNS, 'g');
+  let s = '';
+  for(let i=0;i<count;i++){
+    const a = (i/count)*Math.PI*2;
+    s += `<line x1="${x+Math.cos(a)*11}" y1="${y+Math.sin(a)*11}"
+                x2="${x+Math.cos(a)*radius}" y2="${y+Math.sin(a)*radius}"
+                stroke="${color}" stroke-width="4" stroke-linecap="round"/>`;
+  }
+  g.innerHTML = s;
+  g.setAttribute('pointer-events','none');
+  root.appendChild(g);
+  anim(440, p => {
+    const k = 0.45 + easeOut(p)*1.05;
+    g.setAttribute('transform', `translate(${x},${y}) scale(${k}) translate(${-x},${-y})`);
+    g.style.opacity = String(1 - p);
+  }, () => g.remove());
+}
+function shellParticles(root, x, y){
+  for(let i=0;i<7;i++){
+    const el = document.createElementNS(SVGNS, 'path');
+    el.setAttribute('d', 'M0,0 l7,-5 l3,6 z');
+    el.setAttribute('fill', '#f6efdf');
+    el.setAttribute('stroke', '#d8ccb4');
+    el.setAttribute('stroke-width', '1');
+    el.setAttribute('pointer-events','none');
+    root.appendChild(el);
+    const ang = -Math.PI/2 + (Math.random()-0.5)*2.2;
+    const dist = 46 + Math.random()*46;
+    anim(620, p => {
+      const e = easeOut(p);
+      const dx = Math.cos(ang)*dist*e;
+      const dy = Math.sin(ang)*dist*e + 120*p*p;
+      el.setAttribute('transform', `translate(${x+dx},${y+dy}) rotate(${p*420})`);
+      el.style.opacity = String(1 - p*p);
+    }, () => el.remove());
+  }
+}
+function wobble(el, amp=7, dur=420){
+  anim(dur, p => {
+    const a = Math.sin(p*Math.PI*5) * amp * (1-p);
+    el.setAttribute('transform', `rotate(${a})`);
+  }, () => el.setAttribute('transform',''));
+}
+
+/* ============================== ХЕЛПЕРЫ ============================== */
+function place(x, y, art, o = {}){
+  const s  = (o.s === undefined) ? 1 : o.s;
+  const id = o.id ? ` id="${o.id}"` : '';
+  return `<g transform="translate(${x},${y}) scale(${s})"><g${id}>${art}</g></g>`;
+}
+function target(cx, cy, r, id){
+  return `
+    <circle class="hintring" cx="${cx}" cy="${cy}" r="${r}"
+            fill="none" stroke="#e6b45e" stroke-width="3"/>
+    <circle id="${id}" cx="${cx}" cy="${cy}" r="${r}"
+            fill="none" pointer-events="all" style="cursor:pointer"/>`;
+}
+
+/* ============================== ГРАФИКА ============================== */
+function bg(){
+  return `
+  <defs>
+    <linearGradient id="skyDeep" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#9ed0e8"/>
+      <stop offset="0.42" stop-color="#cfe6ef"/>
+      <stop offset="0.72" stop-color="#f4ecd6"/>
+      <stop offset="1" stop-color="#faeed2"/>
+    </linearGradient>
+    <radialGradient id="sunHalo" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#fff6c8" stop-opacity="0.95"/>
+      <stop offset="0.3" stop-color="#ffe9a0" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#ffe9a0" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="hillFar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#aacb8a"/>
+      <stop offset="1" stop-color="#8eb470"/>
+    </linearGradient>
+    <linearGradient id="hillMid" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#bcd796"/>
+      <stop offset="1" stop-color="#9ec47c"/>
+    </linearGradient>
+    <linearGradient id="grassNear" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#bcd994"/>
+      <stop offset="1" stop-color="#8fb268"/>
+    </linearGradient>
+    <linearGradient id="treeline" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#88ab6e"/>
+      <stop offset="1" stop-color="#6d9058"/>
+    </linearGradient>
+    <radialGradient id="vignette" cx="0.5" cy="0.5" r="0.78">
+      <stop offset="0.58" stop-color="#3a2a18" stop-opacity="0"/>
+      <stop offset="1" stop-color="#3a2a18" stop-opacity="0.16"/>
+    </radialGradient>
+  </defs>
+  <rect x="0" y="0" width="800" height="480" fill="url(#skyDeep)"/>
+  <circle cx="132" cy="96" r="96" fill="url(#sunHalo)"/>
+  <circle cx="132" cy="96" r="36" fill="#fff4c4"/>
+  <circle cx="132" cy="96" r="30" fill="#ffecab"/>
+  <g fill="#ffffff" opacity="0.93">
+    <ellipse cx="566" cy="82" rx="58" ry="24"/>
+    <ellipse cx="614" cy="74" rx="40" ry="20"/>
+    <ellipse cx="522" cy="76" rx="34" ry="17"/>
+    <ellipse cx="566" cy="90" rx="50" ry="13" opacity="0.7"/>
+  </g>
+  <g fill="#ffffff" opacity="0.72">
+    <ellipse cx="298" cy="132" rx="42" ry="16"/>
+    <ellipse cx="332" cy="124" rx="26" ry="12"/>
+    <ellipse cx="282" cy="128" rx="22" ry="10"/>
+  </g>
+  <g fill="url(#treeline)" opacity="0.9">
+    <path d="M0,342 L30,324 L52,336 L74,318 L98,332 L122,314 L146,332 L170,320
+             L196,338 L220,320 L244,334 L268,322 L294,338 L318,320 L342,334 L366,322
+             L392,338 L416,320 L440,332 L464,318 L490,334 L514,322 L538,336 L562,320
+             L586,332 L610,318 L636,334 L660,322 L684,336 L708,320 L732,332 L756,322
+             L780,336 L800,326 L800,382 L0,382 Z"/>
+  </g>
+  <path d="M0,378 Q120,344 250,374 Q380,404 500,370 Q640,334 800,368 L800,480 L0,480 Z" fill="url(#hillFar)"/>
+  <path d="M0,410 Q200,386 400,406 Q600,426 800,400 L800,480 L0,480 Z" fill="url(#hillMid)"/>
+  <g stroke="#b98a56" stroke-width="1" fill="#c99a63">
+    <rect x="70"  y="358" width="6" height="30" rx="1"/>
+    <rect x="110" y="356" width="6" height="32" rx="1"/>
+    <rect x="150" y="358" width="6" height="30" rx="1"/>
+    <rect x="190" y="356" width="6" height="32" rx="1"/>
+    <rect x="230" y="358" width="6" height="30" rx="1"/>
+    <rect x="270" y="356" width="6" height="32" rx="1"/>
+  </g>
+  <g stroke="#b98a56" stroke-width="3.2" fill="none">
+    <line x1="70" y1="368" x2="276" y2="366"/>
+    <line x1="70" y1="380" x2="276" y2="378"/>
+  </g>
+  <path d="M0,434 Q200,416 400,430 Q600,444 800,424 L800,480 L0,480 Z" fill="url(#grassNear)"/>
+  <g stroke="#7fa35c" stroke-width="2.4" stroke-linecap="round" fill="none">
+    <path d="M60,452 q-3,-13 1,-18 M64,452 q1,-12 6,-17 M68,452 q3,-10 10,-13"/>
+    <path d="M180,466 q-3,-13 1,-18 M184,466 q1,-12 6,-17"/>
+    <path d="M700,448 q-3,-13 1,-18 M704,448 q1,-12 6,-17 M708,448 q3,-10 10,-13"/>
+    <path d="M620,470 q-3,-13 1,-18 M624,470 q1,-12 6,-17"/>
+    <path d="M340,472 q-3,-13 1,-18 M344,472 q1,-12 6,-17"/>
+    <path d="M250,446 q-3,-11 1,-15 M254,446 q1,-10 6,-14"/>
+  </g>
+  <g>
+    <circle cx="200" cy="452" r="3.5" fill="#ffffff"/>
+    <circle cx="200" cy="452" r="1.5" fill="#f2c552"/>
+    <circle cx="594" cy="460" r="3.5" fill="#f8e5b0"/>
+    <circle cx="594" cy="460" r="1.5" fill="#e8a838"/>
+    <circle cx="452" cy="448" r="3.5" fill="#ffffff"/>
+    <circle cx="452" cy="448" r="1.5" fill="#f2c552"/>
+    <circle cx="120" cy="440" r="3" fill="#f8e5b0"/>
+    <circle cx="120" cy="440" r="1.3" fill="#e8a838"/>
+  </g>
+  <rect x="0" y="0" width="800" height="480" fill="url(#vignette)" pointer-events="none"/>
+  `;
+}
+function izba(){
+  return `
+  <g>
+    <ellipse cx="0" cy="2" rx="128" ry="12" fill="#3a2a18" opacity="0.15"/>
+    <rect x="-105" y="-100" width="210" height="100" fill="#c9a067"/>
+    <g stroke="#a57c48" stroke-width="1.3">
+      <line x1="-105" y1="-88" x2="105" y2="-88"/>
+      <line x1="-105" y1="-76" x2="105" y2="-76"/>
+      <line x1="-105" y1="-64" x2="105" y2="-64"/>
+      <line x1="-105" y1="-52" x2="105" y2="-52"/>
+      <line x1="-105" y1="-40" x2="105" y2="-40"/>
+      <line x1="-105" y1="-28" x2="105" y2="-28"/>
+      <line x1="-105" y1="-16" x2="105" y2="-16"/>
+    </g>
+    <g fill="#b48a52">
+      <circle cx="-105" cy="-82" r="3"/><circle cx="-105" cy="-70" r="3"/><circle cx="-105" cy="-58" r="3"/>
+      <circle cx="105" cy="-82" r="3"/><circle cx="105" cy="-70" r="3"/><circle cx="105" cy="-58" r="3"/>
+    </g>
+    <path d="M-125,-98 L0,-198 L125,-98 Z" fill="#8b4a38"/>
+    <path d="M0,-198 L125,-98 L119,-98 L0,-190 Z" fill="#6b3526"/>
+    <g stroke="#733d2c" stroke-width="1.4" opacity="0.6">
+      <line x1="-100" y1="-108" x2="100" y2="-108"/>
+      <line x1="-94" y1="-118" x2="94" y2="-118"/>
+      <line x1="-85" y1="-130" x2="85" y2="-130"/>
+      <line x1="-72" y1="-143" x2="72" y2="-143"/>
+      <line x1="-55" y1="-158" x2="55" y2="-158"/>
+      <line x1="-35" y1="-173" x2="35" y2="-173"/>
+    </g>
+    <rect x="-40" y="-90" width="80" height="64" rx="3" fill="#7c4a28"/>
+    <rect x="-34" y="-84" width="68" height="52" rx="2" fill="#a8d4e6"/>
+    <path d="M-34,-84 L-20,-84 L-20,-32 L-34,-32 Z" fill="#f5e2b8" opacity="0.9"/>
+    <path d="M34,-84 L20,-84 L20,-32 L34,-32 Z" fill="#f5e2b8" opacity="0.9"/>
+    <g stroke="#ffffff" stroke-width="0.8" opacity="0.5" fill="none">
+      <line x1="-30" y1="-80" x2="-30" y2="-36"/>
+      <line x1="-26" y1="-80" x2="-26" y2="-36"/>
+      <line x1="26" y1="-80" x2="26" y2="-36"/>
+      <line x1="30" y1="-80" x2="30" y2="-36"/>
+    </g>
+    <line x1="0" y1="-84" x2="0" y2="-32" stroke="#7c4a28" stroke-width="4"/>
+    <line x1="-34" y1="-58" x2="34" y2="-58" stroke="#7c4a28" stroke-width="4"/>
+    <rect x="-44" y="-30" width="88" height="10" rx="2" fill="#8b5a2b"/>
+    <rect x="-44" y="-30" width="88" height="3" rx="1.5" fill="#a5713a"/>
+    <g>
+      <circle cx="-32" cy="-34" r="4.5" fill="#d94a3b"/><circle cx="-32" cy="-34" r="1.8" fill="#8a2316"/>
+      <circle cx="-16" cy="-37" r="4.5" fill="#e8b84b"/><circle cx="-16" cy="-37" r="1.8" fill="#b8770f"/>
+      <circle cx="0"   cy="-34" r="4.5" fill="#d94a3b"/><circle cx="0"   cy="-34" r="1.8" fill="#8a2316"/>
+      <circle cx="16"  cy="-37" r="4.5" fill="#e8b84b"/><circle cx="16"  cy="-37" r="1.8" fill="#b8770f"/>
+      <circle cx="32"  cy="-34" r="4.5" fill="#d94a3b"/><circle cx="32"  cy="-34" r="1.8" fill="#8a2316"/>
+    </g>
+    <rect x="62" y="-64" width="34" height="64" rx="2" fill="#7c4a28"/>
+    <rect x="66" y="-60" width="26" height="60" fill="#8b5a2b"/>
+    <line x1="79" y1="-60" x2="79" y2="0" stroke="#6b3526" stroke-width="1.5"/>
+    <g stroke="#a5713a" stroke-width="0.7" opacity="0.5" fill="none">
+      <line x1="70" y1="-50" x2="70" y2="-10"/>
+      <line x1="88" y1="-50" x2="88" y2="-10"/>
+    </g>
+    <circle cx="87" cy="-30" r="2.6" fill="#e8c98a"/>
+    <rect x="54" y="-200" width="20" height="46" fill="#8b5a2b"/>
+    <rect x="54" y="-200" width="20" height="3" fill="#a5713a"/>
+    <rect x="51" y="-206" width="26" height="8" rx="2" fill="#6b3526"/>
+    <g fill="#ffffff" opacity="0.6">
+      <circle cx="64" cy="-214" r="7"/>
+      <circle cx="70" cy="-228" r="9"/>
+      <circle cx="62" cy="-243" r="8"/>
+      <circle cx="72" cy="-256" r="6" opacity="0.5"/>
+    </g>
+  </g>`;
+}
+function stool(){
+  return `
+  <g>
+    <ellipse cx="0" cy="2" rx="52" ry="8" fill="#3a2a18" opacity="0.15"/>
+    <rect x="-34" y="-44" width="10" height="45" rx="2" fill="#8a5a2b"/>
+    <rect x="24"  y="-44" width="10" height="45" rx="2" fill="#8a5a2b"/>
+    <rect x="-32" y="-44" width="2.5" height="45" fill="#a5713a" opacity="0.6"/>
+    <rect x="26"  y="-44" width="2.5" height="45" fill="#a5713a" opacity="0.6"/>
+    <rect x="-44" y="-58" width="88" height="15" rx="6" fill="#b88a4e"/>
+    <rect x="-44" y="-58" width="88" height="6"  rx="3" fill="#d4a868"/>
+    <rect x="-44" y="-46" width="88" height="3"  fill="#8a5a2b" opacity="0.6"/>
+    <g stroke="#9a6a38" stroke-width="0.8" fill="none" opacity="0.5">
+      <line x1="-38" y1="-52" x2="38" y2="-52"/>
+      <line x1="-38" y1="-49" x2="38" y2="-49"/>
+    </g>
+  </g>`;
+}
+function nest(){
+  return `
+  <g>
+    <ellipse cx="0" cy="2" rx="62" ry="18" fill="#3a2a18" opacity="0.16"/>
+    <ellipse cx="0" cy="-2" rx="58" ry="17" fill="#a87a40"/>
+    <ellipse cx="0" cy="-7" rx="52" ry="14" fill="#c89858"/>
+    <ellipse cx="0" cy="-10" rx="42" ry="11" fill="#d8a868"/>
+    <g stroke="#8a5a28" stroke-width="2" fill="none" opacity="0.6" stroke-linecap="round">
+      <path d="M-50,-10 Q-30,-18 -10,-10"/>
+      <path d="M10,-10 Q30,-18 50,-10"/>
+      <path d="M-46,-2 Q-20,-10 4,-2"/>
+      <path d="M-4,-2 Q22,-10 46,-2"/>
+      <path d="M-40,-15 Q-16,-22 8,-15"/>
+      <path d="M-30,-6 Q-6,-14 18,-6"/>
+    </g>
+    <g stroke="#a8763e" stroke-width="2" stroke-linecap="round">
+      <line x1="-58" y1="-4" x2="-72" y2="-10"/>
+      <line x1="-56" y1="2" x2="-68" y2="8"/>
+      <line x1="56" y1="-6" x2="70" y2="-2"/>
+      <line x1="58" y1="0" x2="72" y2="6"/>
+    </g>
+  </g>`;
+}
+function eggGold(glow){
+  return `
+  <g>
+    ${glow ? `<circle cx="0" cy="-30" r="86" fill="url(#glowGrad)"/>` : ''}
+    <ellipse cx="2" cy="-1" rx="27" ry="6" fill="#8a5a1a" opacity="0.22"/>
+    <path d="M0,-58 C16,-58 28,-35 28,-20 C28,-6 16,2 0,2 C-16,2 -28,-6 -28,-20 C-28,-35 -16,-58 0,-58 Z" fill="url(#goldGrad)"/>
+    <path d="M-28,-16 C-26,-4 -14,2 0,2 C14,2 26,-4 28,-16 C20,-6 8,0 -2,0 C-12,0 -22,-8 -28,-16 Z" fill="#8a5a1a" opacity="0.35"/>
+    <ellipse cx="-9" cy="-38" rx="6" ry="11" fill="#ffffff" opacity="0.6" transform="rotate(-20 -9 -38)"/>
+    <ellipse cx="-11" cy="-42" rx="2.5" ry="4" fill="#ffffff" opacity="0.9" transform="rotate(-20 -11 -42)"/>
+    <path d="M22,-34 Q26,-20 22,-8" stroke="#fde8a8" stroke-width="2" fill="none" opacity="0.6" stroke-linecap="round"/>
+  </g>`;
+}
+function eggPlain(){
+  return `
+  <g>
+    <ellipse cx="2" cy="-1" rx="25" ry="6" fill="#8a7a5a" opacity="0.22"/>
+    <path d="M0,-54 C15,-54 26,-33 26,-19 C26,-5 15,2 0,2 C-15,2 -26,-5 -26,-19 C-26,-33 -15,-54 0,-54 Z" fill="url(#plainGrad)"/>
+    <path d="M-26,-16 C-24,-4 -13,2 0,2 C13,2 24,-4 26,-16 C18,-6 8,0 -2,0 C-12,0 -20,-8 -26,-16 Z" fill="#c9bea8" opacity="0.5"/>
+    <ellipse cx="-8"  cy="-30" rx="1.8" ry="2.4" fill="#c9bea8" opacity="0.6" transform="rotate(-20 -8 -30)"/>
+    <ellipse cx="7"   cy="-22" rx="1.6" ry="2"   fill="#c9bea8" opacity="0.6" transform="rotate(15 7 -22)"/>
+    <ellipse cx="2"   cy="-38" rx="1.4" ry="1.8" fill="#c9bea8" opacity="0.6"/>
+    <ellipse cx="-14" cy="-20" rx="1.2" ry="1.6" fill="#c9bea8" opacity="0.55"/>
+    <ellipse cx="-8"  cy="-38" rx="5" ry="9" fill="#ffffff" opacity="0.85" transform="rotate(-18 -8 -38)"/>
+    <ellipse cx="-9"  cy="-41" rx="2" ry="3.5" fill="#ffffff" transform="rotate(-18 -9 -41)"/>
+    <path d="M20,-32 Q24,-20 20,-8" stroke="#ffffff" stroke-width="1.8" fill="none" opacity="0.6" stroke-linecap="round"/>
+  </g>`;
+}
+function eggBroken(){
+  return `
+  <g>
+    <ellipse cx="4" cy="-2" rx="34" ry="10" fill="#8a5a1a" opacity="0.4"/>
+    <ellipse cx="4" cy="-4" rx="20" ry="8" fill="#e8a838"/>
+    <ellipse cx="2" cy="-6" rx="14" ry="5" fill="#f2c552"/>
+    <ellipse cx="-2" cy="-7" rx="5" ry="2" fill="#fde8a8" opacity="0.85"/>
+    <path d="M-22,-6 L-18,-24 L-10,-16 L-2,-28 L6,-18 L14,-28 L22,-18 L24,-6 Q0,4 -22,-6 Z" fill="#f0e8d4" stroke="#d8ccb4" stroke-width="1.5"/>
+    <path d="M-22,-6 L-18,-24 L-10,-16 L-2,-28 L6,-18 L14,-28 L22,-18 L24,-6" stroke="#ffffff" stroke-width="0.8" fill="none" opacity="0.6"/>
+    <g transform="translate(40,-4) rotate(28)">
+      <path d="M-16,0 L-12,-16 L-4,-8 L4,-18 L12,-8 L16,0 Q0,6 -16,0 Z" fill="#fbf6e8" stroke="#e2d6bf" stroke-width="1.3"/>
+    </g>
+    <path d="M-40,-8 l8,-6 l4,7 z" fill="#f6efdf" stroke="#d8ccb4" stroke-width="0.8"/>
+    <path d="M28,-13 l6,-4 l3,5 z" fill="#f6efdf" stroke="#d8ccb4" stroke-width="0.8"/>
+    <path d="M-30,-14 l5,-3 l2,4 z" fill="#f0e8d4" stroke="#d8ccb4" stroke-width="0.7" opacity="0.8"/>
+  </g>`;
+}
+function mallet(){
+  return `
+  <g>
+    <rect x="-4" y="-6" width="66" height="12" rx="6" fill="#b07c42"/>
+    <rect x="-4" y="-6" width="66" height="4" rx="2" fill="#d4a868" opacity="0.7"/>
+    <rect x="-4" y="2"  width="66" height="4" rx="2" fill="#8a5a2b" opacity="0.5"/>
+    <rect x="54" y="-24" width="32" height="48" rx="10" fill="#8b5a2b"/>
+    <rect x="54" y="-24" width="32" height="12" rx="6" fill="#a5713a"/>
+    <rect x="54" y="12"  width="32" height="12" rx="6" fill="#6b3f24"/>
+    <rect x="60" y="-6"  width="20" height="12" fill="#7a7570"/>
+    <rect x="60" y="-6"  width="20" height="3"  fill="#a8a39d"/>
+    <rect x="60" y="3"   width="20" height="3"  fill="#5a5550"/>
+    <g stroke="#6b3f24" stroke-width="0.7" fill="none" opacity="0.5">
+      <line x1="58" y1="-18" x2="82" y2="-18"/>
+      <line x1="58" y1="18"  x2="82" y2="18"/>
+    </g>
+  </g>`;
+}
+function ded(cry){
+  return `
+  <g>
+    <ellipse cx="0" cy="0" rx="44" ry="9" fill="#3a2a18" opacity="0.16"/>
+    <ellipse cx="-16" cy="-6" rx="18" ry="8" fill="#2a1e14"/>
+    <ellipse cx="16"  cy="-6" rx="18" ry="8" fill="#2a1e14"/>
+    <path d="M-32,-8 Q-32,-18 -18,-18 L-8,-18 Q4,-18 4,-8 Z" fill="#3a2a1c"/>
+    <path d="M8,-8 Q8,-18 20,-18 L30,-18 Q40,-18 40,-8 Z" fill="#3a2a1c"/>
+    <rect x="-24" y="-52" width="16" height="36" fill="#4b3a28"/>
+    <rect x="8"   y="-52" width="16" height="36" fill="#4b3a28"/>
+    <path d="M-34,-48 L-30,-128 Q0,-142 30,-128 L34,-48 Q18,-42 0,-42 Q-18,-42 -34,-48 Z" fill="#7a4b2c"/>
+    <path d="M-34,-48 L-30,-128 Q-15,-134 0,-134 L0,-42 Q-18,-42 -34,-48 Z" fill="#6b3f24" opacity="0.45"/>
+    <path d="M-24,-130 Q-10,-136 0,-136" stroke="#8a5a3a" stroke-width="1.5" fill="none" opacity="0.5"/>
+    <path d="M24,-130 Q10,-136 0,-136" stroke="#8a5a3a" stroke-width="1.5" fill="none" opacity="0.5"/>
+    <rect x="-32" y="-88" width="64" height="10" rx="3" fill="#a8281c"/>
+    <rect x="-32" y="-88" width="64" height="3"  rx="1.5" fill="#c93a2c"/>
+    <rect x="-5"  y="-90" width="10" height="14" rx="2" fill="#e8b84b"/>
+    <circle cx="0" cy="-74" r="2.2" fill="#f5d88c"/>
+    <circle cx="0" cy="-62" r="2.2" fill="#f5d88c"/>
+    <path d="M-30,-124 Q-52,-106 -50,-78" stroke="#7a4b2c" stroke-width="16" stroke-linecap="round" fill="none"/>
+    <path d="M30,-124 Q52,-106 50,-78" stroke="#7a4b2c" stroke-width="16" stroke-linecap="round" fill="none"/>
+    <ellipse cx="-50" cy="-78" rx="9" ry="10" fill="#f0c6a0"/>
+    <ellipse cx="50"  cy="-78" rx="9" ry="10" fill="#f0c6a0"/>
+    <ellipse cx="0" cy="-152" rx="27" ry="29" fill="#f0c6a0"/>
+    <path d="M-27,-142 Q-30,-116 -18,-104 Q-8,-98 0,-98 Q8,-98 18,-104 Q30,-116 27,-142 Q18,-132 0,-134 Q-18,-132 -27,-142 Z" fill="#f7f4ee"/>
+    <path d="M-27,-142 Q-24,-128 -14,-120 Q0,-116 14,-120 Q24,-128 27,-142" fill="none" stroke="#d8d4cc" stroke-width="1.4"/>
+    <path d="M-16,-150 Q-8,-145 0,-148 Q8,-145 16,-150" fill="none" stroke="#f7f4ee" stroke-width="4.5" stroke-linecap="round"/>
+    <ellipse cx="0" cy="-146" rx="5" ry="4.5" fill="#e3a877"/>
+    <circle cx="-10" cy="-160" r="3" fill="#2a1e14"/>
+    <circle cx="10"  cy="-160" r="3" fill="#2a1e14"/>
+    <circle cx="-9"  cy="-161" r="0.9" fill="#ffffff"/>
+    <circle cx="11"  cy="-161" r="0.9" fill="#ffffff"/>
+    <path d="M-18,-168 Q-12,-172 -5,-170" stroke="#e8e4dc" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <path d="M18,-168 Q12,-172 5,-170" stroke="#e8e4dc" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <path d="M-30,-170 Q-32,-182 0,-192 Q32,-182 30,-170 L30,-158 Q0,-172 -30,-158 Z" fill="#5d6b7a"/>
+    <path d="M-30,-170 Q-38,-166 -36,-156 Q-30,-160 -28,-166 Z" fill="#4c5866"/>
+    <path d="M30,-170 Q38,-166 36,-156 Q30,-160 28,-166 Z" fill="#4c5866"/>
+    <path d="M-30,-158 Q0,-172 30,-158" stroke="#48525e" stroke-width="2" fill="none"/>
+    ${cry ? `
+    <g class="tears" fill="#7fc4e8">
+      <path d="M-11,-148 q-2,6 0,10 q2,-4 0,-10 Z"/>
+      <path d="M11,-148 q-2,6 0,10 q2,-4 0,-10 Z"/>
+      <circle cx="-11" cy="-134" r="2.4" opacity="0.85"/>
+      <circle cx="11"  cy="-134" r="2.4" opacity="0.85"/>
+      <circle cx="-11" cy="-124" r="1.8" opacity="0.6"/>
+      <circle cx="11"  cy="-124" r="1.8" opacity="0.6"/>
+    </g>` : ''}
+  </g>`;
+}
+function baba(cry){
+  return `
+  <g>
+    <ellipse cx="0" cy="0" rx="44" ry="9" fill="#3a2a18" opacity="0.16"/>
+    <ellipse cx="-12" cy="-5" rx="14" ry="7" fill="#3a2c1e"/>
+    <ellipse cx="12"  cy="-5" rx="14" ry="7" fill="#3a2c1e"/>
+    <rect x="-18" y="-46" width="13" height="44" rx="5" fill="#5a4632"/>
+    <rect x="5"   y="-46" width="13" height="44" rx="5" fill="#5a4632"/>
+    <path d="M-42,-46 L-28,-138 Q0,-148 28,-138 L42,-46 Q20,-40 0,-40 Q-20,-40 -42,-46 Z" fill="#4a7ba6"/>
+    <path d="M-42,-46 L-28,-138 Q-14,-142 0,-142 L0,-40 Q-20,-40 -42,-46 Z" fill="#3d6890" opacity="0.5"/>
+    <path d="M-22,-46 L-16,-124 Q0,-130 16,-124 L22,-46 Q0,-40 -22,-46 Z" fill="#fbf5e8"/>
+    <path d="M-16,-124 Q0,-130 16,-124" stroke="#e3d8c0" stroke-width="3" fill="none"/>
+    <g stroke="#d8ccb0" stroke-width="0.8" fill="none" opacity="0.6">
+      <line x1="-8" y1="-115" x2="-8" y2="-60"/>
+      <line x1="8"  y1="-115" x2="8"  y2="-60"/>
+    </g>
+    <g fill="#c0392b" opacity="0.85">
+      <circle cx="-12" cy="-70" r="2"/><circle cx="0" cy="-72" r="2"/><circle cx="12" cy="-70" r="2"/>
+      <circle cx="-6"  cy="-58" r="2"/><circle cx="6" cy="-58" r="2"/>
+    </g>
+    <path d="M-27,-132 Q-48,-110 -46,-84" stroke="#4a7ba6" stroke-width="14" stroke-linecap="round" fill="none"/>
+    <path d="M27,-132 Q48,-110 46,-84" stroke="#4a7ba6" stroke-width="14" stroke-linecap="round" fill="none"/>
+    <circle cx="-46" cy="-84" r="9" fill="#f0c6a0"/>
+    <circle cx="46"  cy="-84" r="9" fill="#f0c6a0"/>
+    <path d="M-32,-148 Q-38,-192 0,-196 Q38,-192 32,-148 Q26,-122 0,-120 Q-26,-122 -32,-148 Z" fill="#c0392b"/>
+    <path d="M-32,-148 Q-38,-192 0,-196 Q38,-192 32,-148 Q26,-152 0,-156 Q-26,-152 -32,-148 Z" fill="#a82d1f" opacity="0.45"/>
+    <g fill="#ffffff" opacity="0.55">
+      <circle cx="-18" cy="-172" r="1.6"/><circle cx="0" cy="-180" r="1.6"/><circle cx="18" cy="-172" r="1.6"/>
+      <circle cx="-10" cy="-158" r="1.4"/><circle cx="10" cy="-158" r="1.4"/>
+    </g>
+    <circle cx="0" cy="-158" r="22" fill="#f0c6a0"/>
+    <ellipse cx="-14" cy="-154" rx="5" ry="3.5" fill="#e89a8a" opacity="0.55"/>
+    <ellipse cx="14"  cy="-154" rx="5" ry="3.5" fill="#e89a8a" opacity="0.55"/>
+    <path d="M0,-160 l-3,7 h6 z" fill="#e3a877"/>
+    <circle cx="-8" cy="-164" r="2.8" fill="#2a1e14"/>
+    <circle cx="8"  cy="-164" r="2.8" fill="#2a1e14"/>
+    <circle cx="-7" cy="-165" r="0.8" fill="#ffffff"/>
+    <circle cx="9"  cy="-165" r="0.8" fill="#ffffff"/>
+    <path d="M-13,-172 Q-8,-175 -3,-173" stroke="#a87c5a" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <path d="M13,-172 Q8,-175 3,-173" stroke="#a87c5a" stroke-width="2" fill="none" stroke-linecap="round"/>
+    ${cry
+      ? `<path d="M-6,-144 q6,-4 12,0" stroke="#b5645a" stroke-width="2.4" fill="none" stroke-linecap="round"/>`
+      : `<path d="M-6,-144 q6,4 12,0" stroke="#b5645a" stroke-width="2.4" fill="none" stroke-linecap="round"/>`}
+    ${cry ? `
+    <g class="tears" fill="#7fc4e8">
+      <path d="M-9,-150 q-2,5 0,9 q2,-4 0,-9 Z"/>
+      <path d="M9,-150 q-2,5 0,9 q2,-4 0,-9 Z"/>
+      <circle cx="-9" cy="-138" r="2" opacity="0.8"/>
+      <circle cx="9"  cy="-138" r="2" opacity="0.8"/>
+    </g>` : ''}
+  </g>`;
+}
+function hen(){
+  return `
+  <g>
+    <ellipse cx="0" cy="0" rx="40" ry="7" fill="#3a2a18" opacity="0.14"/>
+    <path d="M-26,-56 Q-58,-88 -46,-118 Q-32,-96 -18,-78 Z" fill="#c9a878"/>
+    <path d="M-30,-52 Q-62,-72 -58,-100 Q-42,-82 -22,-66 Z" fill="#b8946a"/>
+    <path d="M-32,-48 Q-64,-60 -62,-86 Q-44,-70 -24,-56 Z" fill="#a8855a"/>
+    <g stroke="#e09b3d" stroke-width="3.5" stroke-linecap="round" fill="none">
+      <path d="M-8,-18 L-8,1 M-8,1 L-15,5 M-8,1 L-1,5"/>
+      <path d="M10,-18 L10,1 M10,1 L3,5 M10,1 L17,5"/>
+    </g>
+    <ellipse cx="0" cy="-46" rx="36" ry="30" fill="#d8c8a8" opacity="0.55"/>
+    <ellipse cx="0" cy="-48" rx="36" ry="30" fill="#f8efdc"/>
+    <g stroke="#e8d4b0" stroke-width="1.2" fill="none" opacity="0.7">
+      <path d="M-20,-56 Q-16,-52 -12,-56"/>
+      <path d="M-8,-58 Q-4,-54 0,-58"/>
+      <path d="M4,-56 Q8,-52 12,-56"/>
+      <path d="M16,-50 Q20,-46 24,-50"/>
+      <path d="M-24,-44 Q-20,-40 -16,-44"/>
+      <path d="M8,-40 Q12,-36 16,-40"/>
+      <path d="M-14,-34 Q-10,-30 -6,-34"/>
+    </g>
+    <ellipse cx="-4" cy="-40" rx="24" ry="18" fill="#fdf7ec" opacity="0.7"/>
+    <path d="M-18,-58 Q-2,-68 16,-54 Q6,-38 -16,-46 Z" fill="#eadbb8"/>
+    <path d="M-18,-58 Q-2,-68 16,-54" stroke="#c9b088" stroke-width="1.4" fill="none"/>
+    <g stroke="#d4bc94" stroke-width="1.2" fill="none">
+      <path d="M-12,-52 L-4,-48"/>
+      <path d="M-8,-46 L0,-44"/>
+      <path d="M4,-56 L10,-50"/>
+    </g>
+    <path d="M18,-64 Q30,-74 30,-86 Q20,-84 12,-70 Z" fill="#f8efdc"/>
+    <circle cx="32" cy="-90" r="15" fill="#e8d4b0" opacity="0.35"/>
+    <circle cx="32" cy="-90" r="15" fill="#fdf7ec"/>
+    <path d="M22,-102 Q24,-114 28,-104 Q30,-116 34,-105 Q38,-115 40,-103 Q36,-96 30,-97 Z" fill="#c93a2c"/>
+    <path d="M22,-102 Q24,-114 28,-104" stroke="#a8281c" stroke-width="1" fill="none"/>
+    <circle cx="38" cy="-94" r="3" fill="#2a1e14"/>
+    <circle cx="37" cy="-95" r="1" fill="#ffffff"/>
+    <path d="M46,-92 L60,-87 L46,-81 Z" fill="#eda13a"/>
+    <path d="M46,-92 L60,-87 L46,-86 Z" fill="#c87e1e" opacity="0.55"/>
+    <path d="M45,-78 Q46,-71 41,-73 Q42,-78 45,-78 Z" fill="#c93a2c"/>
+  </g>`;
+}
+function mouse(){
+  return `
+  <g>
+    <ellipse cx="0" cy="1" rx="26" ry="5" fill="#3a2a18" opacity="0.12"/>
+    <path d="M-16,-14 Q-44,-18 -50,-36" stroke="#9a9aa2" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+    <path d="M-16,-14 Q-44,-18 -50,-36" stroke="#d0d0d8" stroke-width="1.6" fill="none" stroke-linecap="round" opacity="0.55"/>
+    <ellipse cx="0" cy="-16" rx="21" ry="13" fill="#b8b8c0"/>
+    <ellipse cx="0" cy="-18" rx="18" ry="10" fill="#c8c8d0"/>
+    <g stroke="#a8a8b2" stroke-width="0.8" fill="none" opacity="0.6">
+      <path d="M-10,-22 l3,-2"/><path d="M-4,-24 l3,-2"/><path d="M4,-22 l3,-2"/>
+      <path d="M-8,-16 l3,-1"/><path d="M2,-16 l3,-1"/>
+    </g>
+    <ellipse cx="18" cy="-22" rx="13" ry="11" fill="#c8c8d0"/>
+    <ellipse cx="20" cy="-20" rx="10" ry="8" fill="#d8d8e0"/>
+    <circle cx="12" cy="-33" r="8" fill="#d9a0a8"/>
+    <circle cx="26" cy="-33" r="8" fill="#d9a0a8"/>
+    <circle cx="12" cy="-33" r="4.8" fill="#c88a94"/>
+    <circle cx="26" cy="-33" r="4.8" fill="#c88a94"/>
+    <circle cx="24" cy="-24" r="2.4" fill="#2a1e14"/>
+    <circle cx="23.2" cy="-24.8" r="0.8" fill="#ffffff"/>
+    <ellipse cx="31" cy="-20" rx="2.8" ry="2.2" fill="#c86a7a"/>
+    <circle cx="30.5" cy="-20.8" r="0.6" fill="#ffffff" opacity="0.85"/>
+    <g stroke="#8a8a94" stroke-width="0.7" fill="none" opacity="0.8">
+      <line x1="32" y1="-19" x2="40" y2="-22"/>
+      <line x1="32" y1="-19" x2="40" y2="-18"/>
+      <line x1="32" y1="-19" x2="40" y2="-14"/>
+    </g>
+    <path d="M-8,-3 L-8,2 M6,-3 L6,2" stroke="#a8a8b0" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="-8" cy="2" r="1.5" fill="#d9a0a8"/>
+    <circle cx="6"  cy="2" r="1.5" fill="#d9a0a8"/>
+  </g>`;
+}
+
+/* ============================== СЦЕНЫ ============================== */
+const GROUND = 400;
+
+function scene1(){
+  return {
+    text: 'Жили-были дед да баба. И была у них курочка Ряба.',
+    hint: 'Нажми на курочку',
+    html:
+      bg() +
+      place(700, GROUND, izba(), {s:0.78}) +
+      place(250, GROUND, ded()) +
+      place(390, GROUND, baba()) +
+      place(548, GROUND, hen(), {id:'henA'}) +
+      target(548, GROUND - 58, 74, 'hit1'),
+    init(root, next){
+      const henEl = root.querySelector('#henA');
+      const hit   = root.querySelector('#hit1');
+      let used = false;
+      hit.addEventListener('click', () => {
+        if(used) return; used = true;
+        const ring = root.querySelector('.hintring'); if(ring) ring.remove();
+        S.cluck();
+        anim(420, p => {
+          const e = Math.sin(p*Math.PI);
+          henEl.setAttribute('transform', `translate(0,${-22*e}) rotate(${7*e})`);
+        }, () => {
+          henEl.setAttribute('transform','');
+          burst(root, 548, GROUND - 90, '#ffe08a', 6, 22);
+          setTimeout(next, 750);
+        });
+      });
+    }
+  };
+}
+function scene2(){
+  const EX = 540, EY = GROUND;
+  return {
+    text: 'Снесла курочка яичко. Да не простое, а золотое!',
+    hint: 'Нажми на яичко',
+    html:
+      bg() +
+      place(300, GROUND, nest()) +
+      place(300, GROUND - 14, hen(), {id:'hen2'}) +
+      place(EX, EY, eggGold(true), {id:'egg2'}) +
+      target(EX, EY - 40, 62, 'hit2'),
+    init(root, next){
+      const egg = root.querySelector('#egg2');
+      const hit = root.querySelector('#hit2');
+      egg.setAttribute('transform','scale(0)');
+      setTimeout(() => {
+        S.pop(); S.sparkle();
+        anim(560, p => {
+          const e = easeOut(p);
+          const k = e * (1 + 0.13*Math.sin(p*Math.PI));
+          egg.setAttribute('transform', `scale(${k})`);
+        }, () => {
+          egg.setAttribute('transform','');
+          burst(root, EX, EY - 30, '#fff0bb', 10, 40);
+        });
+      }, 420);
+      let used = false;
+      hit.addEventListener('click', () => {
+        if(used) return; used = true;
+        const ring = root.querySelector('.hintring'); if(ring) ring.remove();
+        S.sparkle();
+        burst(root, EX, EY - 34, '#ffe08a', 12, 52);
+        burst(root, EX, EY - 34, '#ffffff', 8, 34);
+        anim(500, p => {
+          const k = 1 + Math.sin(p*Math.PI)*0.14;
+          egg.setAttribute('transform', `scale(${k})`);
+        }, () => { egg.setAttribute('transform',''); setTimeout(next, 700); });
+      });
+    }
+  };
+}
+function scene3(){
+  const SX = 430, TOP = GROUND - 56;
+  return {
+    text: 'Дед бил-бил — не разбил.',
+    hint: 'Нажми на яйцо — помоги деду',
+    html:
+      bg() +
+      place(SX, GROUND, stool()) +
+      place(SX, TOP, eggGold(), {id:'egg3'}) +
+      place(300, GROUND, ded()) +
+      `<g transform="translate(344,${GROUND-78})"><g id="mallet3" transform="rotate(-55)">${mallet()}</g></g>` +
+      target(SX, TOP - 30, 56, 'hit3'),
+    init(root, next){
+      const mallet = root.querySelector('#mallet3');
+      const egg    = root.querySelector('#egg3');
+      const hit    = root.querySelector('#hit3');
+      let count = 0, busy = false;
+      hit.addEventListener('click', () => {
+        if(busy) return; busy = true;
+        const ring = root.querySelector('.hintring'); if(ring) ring.remove();
+        anim(210, p => {
+          mallet.setAttribute('transform', `rotate(${-55 + 72*easeIn(p)})`);
+        }, () => {
+          S.knock(); setTimeout(() => S.clink(), 30);
+          wobble(egg, 8, 420);
+          burst(root, SX - 26, TOP - 16, '#fff6d0', 6, 22);
+          count++;
+          anim(300, p => {
+            mallet.setAttribute('transform', `rotate(${17 - 72*easeOut(p)})`);
+          }, () => {
+            busy = false;
+            if(count >= 3){
+              hit.style.pointerEvents = 'none';
+              const r = root.querySelector('.hintring'); if(r) r.remove();
+              hintEl.textContent = 'Яичко целое — вот так крепыш!';
+              setTimeout(next, 1300);
+            }
+          });
+        });
+      });
+    }
+  };
+}
+function scene4(){
+  const SX = 430, TOP = GROUND - 56;
+  return {
+    text: 'Баба била-била — не разбила.',
+    hint: 'Нажми на яйцо — помоги бабе',
+    html:
+      bg() +
+      place(SX, GROUND, stool()) +
+      place(SX, TOP, eggGold(), {id:'egg4'}) +
+      place(300, GROUND, baba()) +
+      `<g transform="translate(344,${GROUND-82})"><g id="mallet4" transform="rotate(-55)">${mallet()}</g></g>` +
+      target(SX, TOP - 30, 56, 'hit4'),
+    init(root, next){
+      const mallet = root.querySelector('#mallet4');
+      const egg    = root.querySelector('#egg4');
+      const hit    = root.querySelector('#hit4');
+      let count = 0, busy = false;
+      hit.addEventListener('click', () => {
+        if(busy) return; busy = true;
+        const ring = root.querySelector('.hintring'); if(ring) ring.remove();
+        anim(210, p => {
+          mallet.setAttribute('transform', `rotate(${-55 + 72*easeIn(p)})`);
+        }, () => {
+          S.knock(); setTimeout(() => S.clink(), 30);
+          wobble(egg, 8, 420);
+          burst(root, SX - 26, TOP - 16, '#fff6d0', 6, 22);
+          count++;
+          anim(300, p => {
+            mallet.setAttribute('transform', `rotate(${17 - 72*easeOut(p)})`);
+          }, () => {
+            busy = false;
+            if(count >= 3){
+              hit.style.pointerEvents = 'none';
+              const r = root.querySelector('.hintring'); if(r) r.remove();
+              hintEl.textContent = 'И баба не разбила. Крепкое яичко!';
+              setTimeout(next, 1300);
+            }
+          });
+        });
+      });
+    }
+  };
+}
+function scene5(){
+  const SX = 430, TOP = GROUND - 56;
+  return {
+    text: 'Мышка бежала, хвостиком махнула — яичко упало и разбилось!',
+    hint: 'Нажми на мышку',
+    html:
+      bg() +
+      place(SX, GROUND, stool()) +
+      place(SX, TOP, eggGold(), {id:'egg5'}) +
+      `<g id="mouseOuter" transform="translate(100,${GROUND})"><g id="mouse5">${mouse()}</g></g>` +
+      `<g id="broken5" transform="translate(500,${GROUND})" style="opacity:0;transition:opacity .18s">${eggBroken()}</g>` +
+      target(100, GROUND - 22, 54, 'hit5'),
+    init(root, next){
+      const mouseOuter = root.querySelector('#mouseOuter');
+      const mouseInner = root.querySelector('#mouse5');
+      const egg        = root.querySelector('#egg5');
+      const broken     = root.querySelector('#broken5');
+      const hit        = root.querySelector('#hit5');
+      let busy = false;
+      hit.addEventListener('click', () => {
+        if(busy) return; busy = true;
+        const ring = root.querySelector('.hintring'); if(ring) ring.remove();
+        S.whoosh();
+        const from = 100, to = 392, dur = 1250;
+        anim(dur, p => {
+          const e = easeInOut(p);
+          const x = from + (to - from) * e;
+          const bob = Math.abs(Math.sin(p * Math.PI * 11)) * 4;
+          mouseOuter.setAttribute('transform', `translate(${x},${GROUND - bob})`);
+          mouseInner.setAttribute('transform', `rotate(${Math.sin(p*Math.PI*22)*3})`);
+        }, () => {
+          S.squeak();
+          mouseInner.setAttribute('transform','');
+          anim(260, p => {
+            mouseInner.setAttribute('transform', `rotate(${-Math.sin(p*Math.PI)*14})`);
+          }, () => {
+            mouseInner.setAttribute('transform','');
+            S.cluck();
+            dropEgg();
+          });
+        });
+      });
+      function dropEgg(){
+        anim(220, p => {
+          egg.setAttribute('transform', `rotate(${Math.sin(p*Math.PI*4)*9})`);
+        }, () => {
+          anim(520, p => {
+            const e = easeIn(p);
+            const dx = 70 * e, dy = 56 * e * e, rot = 165 * e;
+            egg.setAttribute('transform', `translate(${dx},${dy}) rotate(${rot})`);
+          }, () => {
+            egg.style.display = 'none';
+            broken.style.opacity = '1';
+            S.crash();
+            shellParticles(root, 500, GROUND - 12);
+            burst(root, 500, GROUND - 14, '#ffe08a', 7, 30);
+            const curX = 392;
+            anim(700, p => {
+              const x = curX + easeIn(p) * 460;
+              const bob = Math.abs(Math.sin(p*Math.PI*8)) * 4;
+              mouseOuter.setAttribute('transform', `translate(${x},${GROUND - bob})`);
+            });
+            setTimeout(next, 1700);
+          });
+        });
+      }
+    }
+  };
+}
+function scene6(){
+  return {
+    text: 'Дед плачет, баба плачет. А курочка Ряба их утешает.',
+    hint: 'Нажми на курочку',
+    html:
+      bg() +
+      place(500, GROUND, eggBroken()) +
+      place(230, GROUND, ded(true)) +
+      place(370, GROUND, baba(true)) +
+      place(620, GROUND, hen(), {id:'hen6'}) +
+      target(620, GROUND - 58, 70, 'hit6'),
+    init(root, next){
+      const henEl = root.querySelector('#hen6');
+      const hit   = root.querySelector('#hit6');
+      let used = false;
+      setTimeout(() => S.sad(), 500);
+      hit.addEventListener('click', () => {
+        if(used) return; used = true;
+        const ring = root.querySelector('.hintring'); if(ring) ring.remove();
+        S.cluck();
+        root.querySelectorAll('.tears').forEach(t => { t.style.opacity = '0'; });
+        anim(460, p => {
+          const e = Math.sin(p*Math.PI);
+          henEl.setAttribute('transform', `translate(0,${-22*e}) rotate(${-8*e})`);
+        }, () => {
+          henEl.setAttribute('transform','');
+          burst(root, 620, GROUND - 92, '#ffe08a', 8, 28);
+          S.happy();
+          setTimeout(next, 1000);
+        });
+      });
+    }
+  };
+}
+function scene7(){
+  return {
+    text: 'Не плачьте, дед и баба! Снесу вам яичко не золотое, а простое!',
+    hint: 'Нажми на яичко',
+    html:
+      bg() +
+      place(200, GROUND, ded()) +
+      place(330, GROUND, baba()) +
+      place(500, GROUND, nest()) +
+      place(500, GROUND - 14, hen(), {id:'hen7'}) +
+      place(680, GROUND, eggPlain(), {id:'egg7'}) +
+      target(680, GROUND - 34, 54, 'hit7'),
+    init(root, next){
+      const egg = root.querySelector('#egg7');
+      const hit = root.querySelector('#hit7');
+      let used = false;
+      egg.setAttribute('transform','scale(0)');
+      setTimeout(() => {
+        S.pop();
+        anim(520, p => {
+          const e = easeOut(p);
+          const k = e * (1 + 0.15*Math.sin(p*Math.PI));
+          egg.setAttribute('transform', `scale(${k})`);
+        }, () => egg.setAttribute('transform',''));
+      }, 400);
+      hit.addEventListener('click', () => {
+        if(used) return; used = true;
+        const ring = root.querySelector('.hintring'); if(ring) ring.remove();
+        S.happy();
+        burst(root, 680, GROUND - 30, '#fff0bb', 12, 54);
+        burst(root, 680, GROUND - 30, '#ffffff', 8, 34);
+        anim(560, p => {
+          const k = 1 + Math.sin(p*Math.PI)*0.16;
+          egg.setAttribute('transform', `scale(${k})`);
+        }, () => {
+          egg.setAttribute('transform','');
+          setTimeout(() => finish(), 900);
+        });
+      });
+    }
+  };
+}
+
+/* ============================== ДВИЖОК ============================== */
+const scenes = [scene1, scene2, scene3, scene4, scene5, scene6, scene7];
+const stageEl   = document.getElementById('stage');
+const captionEl = document.getElementById('caption');
+const hintEl    = document.getElementById('hint');
+const dotsEl    = document.getElementById('dots');
+const startOv   = document.getElementById('startOverlay');
+const endOv     = document.getElementById('endOverlay');
+
+let current = 0;
+scenes.forEach(() => {
+  const d = document.createElement('div');
+  d.className = 'dot';
+  dotsEl.appendChild(d);
+});
+const dotEls = [...dotsEl.children];
+
+function updateDots(){
+  dotEls.forEach((d, i) => {
+    d.className = 'dot' + (i === current ? ' active' : i < current ? ' done' : '');
+  });
+}
+
+function render(i){
+  const sc = scenes[i]();
+  current = i;
+
+  stageEl.innerHTML =
+    `<svg class="scene-svg" viewBox="0 0 800 480"
+          preserveAspectRatio="xMidYMid meet"
+          xmlns="http://www.w3.org/2000/svg">${sc.html}</svg>`;
+
+  captionEl.textContent = sc.text;
+  hintEl.textContent = sc.hint || '';
+  hintEl.style.visibility = sc.hint ? 'visible' : 'hidden';
+  updateDots();
+
+  setTimeout(() => {
+    if(current === i) playNarration(i);
+  }, 350);
+
+  const svg = stageEl.querySelector('svg');
+  sc.init(svg, () => goTo(i + 1));
+}
+
+function goTo(i){
+  if(i >= scenes.length){ finish(); return; }
+  stageEl.style.opacity = '0';
+  captionEl.style.opacity = '0';
+  hintEl.style.opacity = '0';
+  setTimeout(() => {
+    render(i);
+    stageEl.style.opacity = '1';
+    captionEl.style.opacity = '1';
+    hintEl.style.opacity = '1';
+  }, 270);
+}
+
+function finish(){
+  current = scenes.length - 1;
+  updateDots();
+  dotEls.forEach(d => { d.className = 'dot done'; });
+  stopNarration();
+  endOv.classList.remove('hidden');
+}
+
+function startGame(){
+  try { actx(); } catch(e){}
+  stopNarration();
+  startOv.classList.add('hidden');
+  endOv.classList.add('hidden');
+  stageEl.style.opacity = '1';
+  captionEl.style.opacity = '1';
+  hintEl.style.opacity = '1';
+  render(0);
+}
+
+document.getElementById('startBtn').addEventListener('click', startGame);
+document.getElementById('againBtn').addEventListener('click', startGame);
+document.getElementById('muteBtn').addEventListener('click', () => setMuted(!muted));
+
+document.querySelector('.mini-hen').innerHTML = hen();
+
+stageEl.style.transition   = 'opacity .26s ease';
+captionEl.style.transition = 'opacity .26s ease';
+hintEl.style.transition    = 'opacity .26s ease';
+hintEl.style.visibility = 'hidden';
+
+updateMuteBtn();
+initAudioProbe();
+</script>
+</body>
+</html>
